@@ -4,7 +4,12 @@
         <div class="go-upload-trigger" @click="onClickTrigger">
             点击上传
         </div>
+        <el-button type="primary" @click="handlePause">暂停</el-button>
+        <el-button type="primary">继续</el-button>
         <el-progress :percentage="percent"></el-progress>
+        <h1>chunk 上传进度列表</h1>
+        <el-progress v-for="item in partList" :key="item.chunkName" :percentage="item.percent">{{ item.chunkName }}</el-progress>
+
     </div>
 </template>
 
@@ -18,12 +23,14 @@ const HOST = 'http://localhost:3000'
 export default {
     name: 'UploadComponent',
     data() {
+        const controller = new AbortController();
         return {
             currentFile: null,
             percent: 0,
             worker: null,
             fileName: '',
-            partList: []
+            partList: [],
+            controller
         }
     },
     mounted() {
@@ -122,7 +129,7 @@ export default {
                         const { data } = res
                         if (data.code === 200) {
                             this.$message.success('上传成功');
-                            this.reset()
+                            // this.reset()
                         } else {
                             this.$message.error('上传失败，请稍后重试~');
                         }
@@ -156,18 +163,16 @@ export default {
                 headers: {
                     'Content-Type': 'application/octet-stream',
                 },
-                // setXhr: (xhr) => {
-                //     part.xhr = xhr;
-                // },
-                onProgress: () => {
-                    // part.percent = Number(((part.loaded + event.loaded) / part.chunk.size * 100).toFixed(2));
-                    // console.log('part percent: ', part.percent)
-                    // this.partList = [...partList]
-                    // if (this.partList.length > 0 ) {
-                    //     this.percent = this.partList.reduce((memo, curr) => memo + curr.percent, 0)
-                    // } else {
-                    //     this.percent = 0
-                    // }
+                signal: this.controller.signal,
+                onUploadProgress: function (progressEvent) {
+                    part.percent =  Number.parseFloat(progressEvent.loaded / progressEvent.total).toFixed(2) * 100;
+                    console.log('part.chunkName==>', part.chunkName,  progressEvent.loaded / progressEvent.total)
+                    this.partList = [...partList]
+                    if (this.partList.length > 0 ) {
+                        this.percent = this.partList.reduce((memo, curr) => memo + curr.percent, 0)
+                    } else {
+                        this.percent = 0
+                    }
                 },
                 data: part.chunk.slice(part.loaded),
             }))
@@ -176,6 +181,9 @@ export default {
             this.percent = 0
             this.partList = []
             this.fileName = ''
+        },
+        handlePause() {
+            this.controller.abort()
         }
     }
 }

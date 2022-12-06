@@ -26,4 +26,8 @@ npm run dev
 
 ```
 
+测试的时候可以把网络设置慢一点
+
+<img  src="./img/network.png" />
+
 本文参考学习 https://segmentfault.com/a/1190000023619104

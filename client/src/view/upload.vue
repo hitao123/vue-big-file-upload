@@ -1,15 +1,24 @@
 <template>
-    <div>
-        <input type="file" ref="input" class="file" @change="handleFile($event)">
+    <div class="break-point-upload">
+        <h3>断点续传 VS 非断点续传</h3>
+        <input type="file" ref="inputPart" class="file" @change="handleFile($event, 'part')">
         <div class="go-upload-trigger" @click="onClickTrigger">
-            点击上传
+            <svg t="1671939317490" class="upload-icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="2695" width="80" height="80"><path d="M896 629.333333c-17.066667 0-32 14.933333-32 32v170.666667c0 6.4-4.266667 10.666667-10.666667 10.666667H170.666667c-6.4 0-10.666667-4.266667-10.666667-10.666667v-170.666667c0-17.066667-14.933333-32-32-32s-32 14.933333-32 32v170.666667c0 40.533333 34.133333 74.666667 74.666667 74.666667h682.666666c40.533333 0 74.666667-34.133333 74.666667-74.666667v-170.666667c0-17.066667-14.933333-32-32-32z" fill="#666666" p-id="2696"></path><path d="M322.133333 407.466667l157.866667-157.866667V704c0 17.066667 14.933333 32 32 32s32-14.933333 32-32V247.466667l157.866667 157.866666c6.4 6.4 14.933333 8.533333 23.466666 8.533334s17.066667-2.133333 23.466667-8.533334c12.8-12.8 12.8-32 0-44.8l-213.333333-213.333333c-12.8-12.8-32-12.8-44.8 0l-213.333334 213.333333c-12.8 12.8-12.8 32 0 44.8 10.666667 12.8 32 12.8 44.8 2.133334z" fill="#666666" p-id="2697"></path></svg>
         </div>
         <el-button type="primary" @click="handlePause">暂停</el-button>
         <el-button type="primary">继续</el-button>
-        <el-progress :percentage="percent"></el-progress>
+        <el-progress v-if="percent > 0" :percentage="percent"></el-progress>
         <h1>chunk 上传进度列表</h1>
-        <el-progress v-for="item in partList" :key="item.chunkName" :percentage="item.percent">{{ item.chunkName }}</el-progress>
-
+        <div v-for="item in partList" :key="item.chunkName">
+            <div>{{ item.chunkName }}</div>
+            <el-progress  :percentage="item.percent"></el-progress>
+        </div>
+        <div  class="line" />
+        <div>非断点续传</div>
+        <input type="file" ref="inputAll" class="file" @change="handleFile($event, 'all')">
+        <div class="go-upload-trigger" @click="onClickAllTrigger">
+            <svg t="1671939317490" class="upload-icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="2695" width="80" height="80"><path d="M896 629.333333c-17.066667 0-32 14.933333-32 32v170.666667c0 6.4-4.266667 10.666667-10.666667 10.666667H170.666667c-6.4 0-10.666667-4.266667-10.666667-10.666667v-170.666667c0-17.066667-14.933333-32-32-32s-32 14.933333-32 32v170.666667c0 40.533333 34.133333 74.666667 74.666667 74.666667h682.666666c40.533333 0 74.666667-34.133333 74.666667-74.666667v-170.666667c0-17.066667-14.933333-32-32-32z" fill="#666666" p-id="2696"></path><path d="M322.133333 407.466667l157.866667-157.866667V704c0 17.066667 14.933333 32 32 32s32-14.933333 32-32V247.466667l157.866667 157.866666c6.4 6.4 14.933333 8.533333 23.466666 8.533334s17.066667-2.133333 23.466667-8.533334c12.8-12.8 12.8-32 0-44.8l-213.333333-213.333333c-12.8-12.8-32-12.8-44.8 0l-213.333334 213.333333c-12.8 12.8-12.8 32 0 44.8 10.666667 12.8 32 12.8 44.8 2.133334z" fill="#666666" p-id="2697"></path></svg>
+        </div>
     </div>
 </template>
 
@@ -41,11 +50,19 @@ export default {
     },
     methods: {
         onClickTrigger() {
-            this.$refs.input.click();
+            this.$refs.inputPart.click();
         },
-        handleFile(e) {
+        onClickAllTrigger() {
+            this.$refs.inputAll.click();
+        },
+        handleFile(e, type) {
+            console.log(type)
             this.currentFile = e.target.files[0]
-            this.handlePartFile()
+            if (type === 'part') {
+                this.handlePartFile()
+            } else {
+                this.handleAllFile()
+            }
             e.target.value = '';
         },
         handlePartFile() {
@@ -65,6 +82,26 @@ export default {
                 this.fileName = fileName
 
                 this.uploadParts(this.partList, this.fileName)
+            })
+        },
+        /**
+         * 上传所有文件
+         */
+        handleAllFile() {
+            const formData = new FormData()
+            formData.append('files', this.currentFile);
+            formData.append('name', this.generateUUID());
+            axios({
+                method: 'POST',
+                url: HOST + `/uploadAll`,
+                headers: {
+                    'Content-Type': 'multipart/form-data',
+                },
+                data: formData,
+            }).then(res => {
+                if (res.data.success) {
+                    this.$message('上传成功');
+                }
             })
         },
         /**
@@ -184,6 +221,21 @@ export default {
         },
         handlePause() {
             this.controller.abort()
+        },
+        generateUUID() {
+            let d = new Date().getTime();
+            let d2 = ((typeof performance !== 'undefined') && performance.now && (performance.now()*1000)) || 0;
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                let r = Math.random() * 16; //random number between 0 and 16
+                if(d > 0){ //Use timestamp until depleted
+                    r = (d + r)%16 | 0;
+                    d = Math.floor(d/16);
+                } else { //Use microseconds since page-load if supported
+                    r = (d2 + r)%16 | 0;
+                    d2 = Math.floor(d2/16);
+                }
+                return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+            });
         }
     }
 }
@@ -193,5 +245,16 @@ export default {
 .file {
     // display: none;
     visibility: hidden;
+}
+.break-point-upload {
+    .upload-icon {
+        cursor: pointer;
+    }
+}
+
+.line {
+    height: 1px;
+    background-color: #e3e3e3;
+    margin: 10px auto;
 }
 </style>

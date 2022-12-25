@@ -21,6 +21,27 @@ app.get('/', function (req, res) {
     res.send('hello world')
 })
 
+app.post('/uploadAll', async (req, res, next) => {
+    const form = new multiparty.Form();
+    //设置编辑
+    form.encoding = 'utf-8';
+    //设置文件存储路径
+    //设置单文件大小限制 
+    form.maxFilesSize = 200 * 1024 * 1024;
+    // 这里在真实的场景应该是上传到 cdn 上，会有对应 node sdk 进行上传
+    form.parse(req, async (err, fields, files) => {
+        if (err) return next(err)
+        const name = fields.name[0]
+        const file = files.files[0]
+        console.log(name, file)
+        await fs.move(file.path, path.resolve(PUBLIC_DIR, file.originalFilename), { overwrite: true })
+        res.json({
+            success: true,
+            fileName: file.originalFilename,
+        })
+    })
+})
+
 /**
  * 上传
  */
@@ -29,7 +50,7 @@ app.post('/upload', async (req, res, next) => {
     form.parse(req, async (err, fields, files) => {
         if (err) return next(err)
         const name = fields.name[0]
-        const file = files.file[0]
+        const file = files.files[0]
         await fs.move(file.path, path.resolve(PUBLIC_DIR, name), { overwrite: true })
         res.json({
             success: true
